@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ingredient Price Watchdog</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+      padding: 40px;
+      width: 100%;
+      max-width: 580px;
+    }
+    .logo { font-size: 40px; margin-bottom: 8px; }
+    h1 { font-size: 24px; color: #111; margin-bottom: 4px; font-weight: 700; }
+    .subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+    .upload-area {
+      border: 2px dashed #d0d5dd;
+      border-radius: 14px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fafafa;
+      margin-bottom: 16px;
+    }
+    .upload-area:hover { border-color: #4f46e5; background: #f5f3ff; }
+    .upload-icon { font-size: 36px; margin-bottom: 10px; }
+    .upload-area p { color: #555; font-size: 15px; margin-bottom: 4px; }
+    .upload-area small { color: #aaa; font-size: 12px; }
+    #file-input { display: none; }
+    #file-name { font-size: 13px; color: #4f46e5; margin-top: 10px; font-weight: 500; min-height: 18px; }
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .btn:hover { background: #4338ca; }
+    .btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+    #results { margin-top: 32px; display: none; }
+    .result-header {
+      font-size: 17px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    .item-name { font-weight: 600; color: #111; font-size: 15px; }
+    .item-price { color: #777; font-size: 13px; margin-top: 3px; }
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .ok    { background: #f0fdf4; }
+    .ok .badge    { background: #dcfce7; color: #166534; }
+    .warn  { background: #fffbeb; }
+    .warn .badge  { background: #fef3c7; color: #92400e; }
+    .alert { background: #fff1f2; }
+    .alert .badge { background: #ffe4e6; color: #9f1239; }
+    .new   { background: #eff6ff; }
+    .new .badge   { background: #dbeafe; color: #1e3a8a; }
+    .spinner {
+      display: none;
+      text-align: center;
+      padding: 24px 0;
+      color: #888;
+      font-size: 14px;
+    }
+    .spinner::before {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 36px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #4f46e5;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .summary-box {
+      background: #f8f9ff;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-top: 18px;
+      font-size: 14px;
+      color: #555;
+      line-height: 1.6;
+      border-left: 4px solid #4f46e5;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🐕‍🦺</div>
+  <h1>Ingredient Price Watchdog</h1>
+  <p class="subtitle">Upload a supplier invoice — we'll flag any price increases instantly.</p>
+
+  <form id="upload-form" enctype="multipart/form-data">
+    <div class="upload-area" id="drop-zone">
+      <div class="upload-icon">📄</div>
+      <p>Drop your invoice here, or <strong>click to browse</strong></p>
+      <small>JPG or PNG · Max 16MB</small>
+      <div id="file-name"></div>
+    </div>
+    <input type="file" id="file-input" name="file" accept=".jpg,.jpeg,.png" />
+    <button class="btn" type="submit" id="submit-btn">Analyse Invoice</button>
+  </form>
+
+  <div class="spinner" id="spinner">Analysing your invoice with AI…</div>
+
+  <div id="results">
+    <div class="result-header">📊 Price Report</div>
+    <div id="items-list"></div>
+    <div class="summary-box" id="summary"></div>
+  </div>
+</div>
+
+<script>
+  const dropZone  = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileName  = document.getElementById('file-name');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) fileName.textContent = '📎 ' + fileInput.files[0].name;
+  });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = '#4f46e5'; });
+  dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = '#d0d5dd');
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = '#d0d5dd';
+    fileInput.files = e.dataTransfer.files;
+    if (fileInput.files[0]) fileName.textContent = '📎 ' + fileInput.files[0].name;
+  });
+
+  document.getElementById('upload-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!fileInput.files[0]) { alert('Please choose an invoice file first.'); return; }
+
+    const btn     = document.getElementById('submit-btn');
+    const spinner = document.getElementById('spinner');
+    const results = document.getElementById('results');
+
+    btn.disabled = true;
+    btn.textContent = 'Analysing…';
+    spinner.style.display = 'block';
+    results.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+      const res  = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      spinner.style.display = 'none';
+      results.style.display = 'block';
+
+      const list = document.getElementById('items-list');
+      list.innerHTML = '';
+
+      (data.items || []).forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item ' + (item.status || 'new');
+        div.innerHTML = `
+          <div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-price">${item.price_info}</div>
+          </div>
+          <span class="badge">${item.badge}</span>`;
+        list.appendChild(div);
+      });
+
+      document.getElementById('summary').textContent = data.summary || '';
+
+    } catch (err) {
+      spinner.style.display = 'none';
+      alert('Something went wrong. Make sure Flask is running and try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Analyse Invoice';
+    }
+  });
+</script>
+</body>
+</html>

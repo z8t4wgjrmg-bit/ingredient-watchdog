@@ -1,0 +1,6 @@
+flask
+anthropic
+pillow
+pytesseract
+werkzeug
+gunicorn

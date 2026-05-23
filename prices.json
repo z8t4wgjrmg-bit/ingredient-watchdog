@@ -1,0 +1,26 @@
+{
+  "tomatoes": {
+    "price": 4.5,
+    "unit": "kg"
+  },
+  "chicken breast": {
+    "price": 28.0,
+    "unit": "kg"
+  },
+  "olive oil": {
+    "price": 52.0,
+    "unit": "L"
+  },
+  "onions": {
+    "price": 2.0,
+    "unit": "kg"
+  },
+  "basmati rice": {
+    "price": 8.5,
+    "unit": "kg"
+  },
+  "lemons": {
+    "price": 6.0,
+    "unit": "kg"
+  }
+}
